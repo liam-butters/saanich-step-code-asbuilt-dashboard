@@ -40,6 +40,19 @@ NUMERIC_KEYS = ['meui', 'tedi', 'ach', 'nla', 'nlr', 'floor_area', 'ghg', 'ghg_i
 PERCENT_SCALE_100 = {'tedi_imp'}
 CATEGORY_KEYS = {'step_achieved': 'step_achieved', 'building_type': 'building_type'}
 
+# The main dashboard's own GHGs is deliberately left as the raw, undivided
+# value it reports (a whole-building total for a multi-unit entry). This
+# dashboard's own GHGs is already on a per-dwelling-unit basis (divided by
+# Dwelling Units - see this repo's own extract_data.py), so for an
+# apples-to-apples comparison this baseline needs the main dashboard's
+# per-dwelling-unit GHGs instead - 'ghg_per_unit', which the main dashboard
+# computes for exactly this purpose but never shows in its own UI.
+MAIN_KEY_OVERRIDES = {'ghg': 'ghg_per_unit'}
+
+
+def main_key(k):
+    return MAIN_KEY_OVERRIDES.get(k, k)
+
 
 def scale(key, value):
     return value * 100 if (value is not None and key in PERCENT_SCALE_100) else value
@@ -55,7 +68,7 @@ def build_mode(data, mode):
 
     for cell in cells:
         for k in NUMERIC_KEYS:
-            v = cell['num'].get(k)
+            v = cell['num'].get(main_key(k))
             if v:
                 sums[k][0] += v[0]
                 sums[k][1] += v[1]
@@ -69,7 +82,7 @@ def build_mode(data, mode):
             acc = by_year.setdefault(year, {'count': 0, 'num': {k: [0.0, 0] for k in NUMERIC_KEYS}})
             acc['count'] += cell['count']
             for k in NUMERIC_KEYS:
-                v = cell['num'].get(k)
+                v = cell['num'].get(main_key(k))
                 if v:
                     acc['num'][k][0] += v[0]
                     acc['num'][k][1] += v[1]
@@ -85,12 +98,14 @@ def build_mode(data, mode):
         # sum/count directly still gets the correctly-scaled mean.
         num_out = {k: [scale(k, pair[0]) if pair[1] else 0.0, pair[1]] for k, pair in acc['num'].items()}
         row = {'year': year, 'count': acc['count'], 'num': num_out}
-        median = median_raw.get(f'{CITY}|{year}')
-        if median:
-            row['median'] = {
-                k: ([scale(k, v) for v in vals] if k in PERCENT_SCALE_100 else vals)
-                for k, vals in median.items()
+        median_src = median_raw.get(f'{CITY}|{year}')
+        if median_src:
+            median = {
+                k: ([scale(k, v) for v in median_src[main_key(k)]] if k in PERCENT_SCALE_100 else median_src[main_key(k)])
+                for k in NUMERIC_KEYS if main_key(k) in median_src
             }
+            if median:
+                row['median'] = median
         years_out.append(row)
 
     return {

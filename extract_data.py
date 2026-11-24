@@ -126,6 +126,14 @@ NUMERIC_FIELDS = {
     'Envelope % Better / Heat Loss Reduction Proposed': 'tedi_imp',
 }
 
+# These columns use 0 to mean "not measured/not applicable" rather than
+# leaving the cell blank in practice (a real home never has literally zero
+# airtightness, floor area, or energy use) - treat 0 as missing for these keys
+# so it doesn't drag an average/median toward zero. Deliberately excludes
+# meui_imp/tedi_imp: 0% (or negative) improvement over the reference house is
+# a legitimate, real value there, not a sentinel.
+ZERO_AS_MISSING = {'meui', 'tedi', 'ach', 'nla', 'nlr', 'floor_area'}
+
 # GHGs are taken directly from ZC Total GHG Result. Unlike the sibling
 # Victoria workbook - where this same column was unreliable because those
 # reports used the 2018-era compliance report format (some rows had values
@@ -277,14 +285,14 @@ def main():
         num = {}
         for field, key in NUMERIC_FIELDS.items():
             fv = to_float(get(field))
-            if fv is not None:
+            if fv is not None and not (fv == 0 and key in ZERO_AS_MISSING):
                 num[key] = fv
 
         floor_area = num.get('floor_area')
         ghg = to_float(get(GHG_FIELD))
         if ghg is not None and ghg > GHG_PLAUSIBILITY_CEILING:
             ghg = None
-        if ghg is not None and floor_area:
+        if ghg and floor_area:
             num['ghg'] = ghg
             num['ghg_intensity'] = ghg / floor_area
 
