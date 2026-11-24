@@ -46,6 +46,19 @@ REPORT_DATE_FIELD = 'Report Date'
 BUILDING_TYPE_FIELD = 'Building Type'
 STEP_ACHIEVED_FIELD = 'Step Achieved'
 FLOOR_AREA_FIELD = 'Conditioned Floor Area (m2)'
+# A row can represent a whole block of identical attached units (e.g. a row
+# of townhomes modeled once in HOT2000 and applied to all of them) rather
+# than a single house - see Dwelling Units below.
+DWELLING_UNITS_FIELD = 'Dwelling Units'
+
+# Conditioned Floor Area and GHGs are reported as totals for the whole row
+# (i.e. for all of its Dwelling Units combined), not per-home values - e.g. a
+# 6-unit rowhouse block's floor area is the sum of all 6 units' areas, and
+# its GHGs are the combined total for all 6. Every other metric (MEUI, TEDI,
+# ACH, NLA, NLR, GHG intensity, % improvements) is already a per-home
+# intensity/ratio, since it comes from the single HOT2000 model that stands
+# for every identical unit in the block.
+BLOCK_TOTAL_KEYS = {'floor_area', 'ghg'}
 
 # Numeric fields taken from this row's "Proposed" column (the as-built
 # measured value, for As-Built-stage rows), mapped onto the same metric keys
@@ -165,7 +178,7 @@ def main():
     col = {name: i for i, name in enumerate(header) if name}
 
     missing = [n for n in [REPORT_STAGE_FIELD, MUNICIPALITY_FIELD, REPORT_DATE_FIELD, BUILDING_TYPE_FIELD,
-                            STEP_ACHIEVED_FIELD, GHG_FIELD]
+                            STEP_ACHIEVED_FIELD, GHG_FIELD, DWELLING_UNITS_FIELD]
                + list(NUMERIC_FIELDS) if n not in col]
     if missing:
         raise SystemExit(f'Columns not found in header: {missing}')
@@ -203,7 +216,12 @@ def main():
         # much more granular labels.
         house_type_group = 'Multi-unit: whole building' if 'MURB' in building_type.upper() else 'House'
 
-        muni_counts[municipality] = muni_counts.get(municipality, 0) + 1
+        # Default to 1 unit when Dwelling Units is blank/invalid.
+        units = to_float(get(DWELLING_UNITS_FIELD))
+        if not units or units < 1:
+            units = 1.0
+
+        muni_counts[municipality] = muni_counts.get(municipality, 0) + units
         total_kept += 1
 
         num = {}
@@ -227,14 +245,20 @@ def main():
             'num': {},
             'cat': {'step_achieved': {}, 'house_type_group': {}, 'building_type': {}},
         })
-        cell['count'] += 1
+        # 'count' and every metric are weighted by Dwelling Units, to match
+        # the NRCan baseline's convention of counting individual homes. For
+        # the two BLOCK_TOTAL_KEYS, the row's value is already a total across
+        # `units` homes, so only the denominator is weighted (giving the
+        # correct per-home average); every other metric is already a
+        # per-home value, so both its sum and denominator are weighted.
+        cell['count'] += units
         for key, v in num.items():
             pair = cell['num'].setdefault(key, [0.0, 0])
-            pair[0] += v
-            pair[1] += 1
+            pair[0] += v if key in BLOCK_TOTAL_KEYS else v * units
+            pair[1] += units
         for cat_key, value in (('step_achieved', step_achieved), ('house_type_group', house_type_group), ('building_type', building_type)):
             hist = cell['cat'][cat_key]
-            hist[value] = hist.get(value, 0) + 1
+            hist[value] = hist.get(value, 0) + units
 
     print(f'{total_in_sheet} data rows in sheet, {skipped_not_as_built} skipped (not "{WANTED_REPORT_STAGE}" report stage), '
           f'{total_kept} kept')
