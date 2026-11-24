@@ -64,12 +64,14 @@ NUMERIC_FIELDS = {
     'Envelope % Better / Heat Loss Reduction Proposed': 'tedi_imp',
 }
 
+# GHGs are taken from ZC Total GHG Result even though that column is known
+# to be unreliable for reports pulled from the 2018-era compliance report
+# format (see the sibling Victoria dashboard, which hit values three orders
+# of magnitude too high on some rows). The fix there - recalculating GHGs
+# from as-built electricity/natural gas consumption - isn't possible here:
+# this workbook has no fuel-consumption columns at all. Kept anyway (flagged
+# in the UI as lower-confidence) since there's no better source available.
 GHG_FIELD = 'ZC Total GHG Result'
-# Same data-quality safeguard as the Victoria workbook's extract_data.py: a
-# handful of rows across these Zero-Carbon-framework workbooks have had
-# absurd ZC Total GHG Result values (formula artifacts, not real readings).
-# None were found in this workbook at the time of writing, but the ceiling
-# is kept as a defensive check rather than assuming it can't recur.
 GHG_PLAUSIBILITY_CEILING = 100000
 
 MIN_PLAUSIBLE_YEAR = 1990

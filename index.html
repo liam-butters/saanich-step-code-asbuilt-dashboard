@@ -132,7 +132,7 @@
   </div>
   <div class="chart-row">
     <div class="chart-card"><h3>Avg. airtightness (ACH50), by year</h3><div class="chart-box" id="chartAch"></div></div>
-    <div class="chart-card"><h3>Avg. GHG intensity, by year</h3><div class="chart-box" id="chartGhgIntensity"></div></div>
+    <div class="chart-card"><h3>Avg. GHG intensity, by year ⚠︎ low confidence</h3><div class="chart-box" id="chartGhgIntensity"></div><p class="chart-note">This workbook has no electricity/gas consumption data to calculate GHGs from directly (unlike the sibling Victoria dashboard); these values come from the Zero Carbon framework's own GHG result column, which is known to be unreliable for some report vintages. Treat with caution.</p></div>
   </div>
   <div class="chart-row">
     <div class="chart-card"><h3>Avg. MEUI % improvement over reference, by year</h3><div class="chart-box" id="chartMeuiImp"></div></div>
@@ -158,7 +158,7 @@
       <li><b>MEUI % improvement over reference</b> — this workbook's <code>% Lower Than Ref / % Improvement Proposed</code> column, compared against the main dashboard's <code>Calculated MEUI % Improvement</code> (both already stored as a percentage).</li>
       <li><b>TEDI % improvement over reference</b> — this workbook's <code>Envelope % Better / Heat Loss Reduction Proposed</code> column, compared against the main dashboard's <code>Calc'd TEDI % Imp</code> (stored there as a 0-1 fraction; scaled &times;100 here for comparison).</li>
       <li><b>Floor area</b> — this workbook's <code>Conditioned Floor Area (m2)</code>, compared against the main dashboard's <code>HEATEDFLOORAREA</code>. The two aren't guaranteed to be defined identically, though they're normally close.</li>
-      <li><b>GHGs / GHG intensity</b> — this workbook has no raw "GHGs" column; the closest as-built proxy is its Zero Carbon framework's <code>ZC Total GHG Result</code> (and that total divided by floor area, mirroring how the main dashboard derives GHG intensity).</li>
+      <li><b>GHGs / GHG intensity ⚠︎ low confidence</b> — this workbook has no raw "GHGs" column and, unlike the sibling Victoria workbook, no electricity/natural gas consumption columns either, so GHGs can't be recalculated from fuel use here. The values shown come from the Zero Carbon framework's <code>ZC Total GHG Result</code> (divided by floor area for intensity) instead. That column is known to be unreliable for reports pulled from the 2018-era compliance report format — in the Victoria workbook it produced values three orders of magnitude too high on some rows, which is why GHGs are calculated from fuel consumption there instead of trusted from that column. No equivalent fix is possible here, so these two rows/charts should be treated with caution rather than taken at face value.</li>
       <li><b>Overall step achieved</b> — this workbook's <code>Step Achieved</code>, compared against the main dashboard's <code>Step Achieved</code>.</li>
       <li><b>House vs. multi-unit building</b> — this workbook's granular <code>Building Type</code> values are grouped into "House" vs. "Multi-unit: whole building" (any type containing "MURB") to match the main dashboard's own two-bucket convention.</li>
       <li><b>Year</b> — this workbook has no "year built" column, only a <code>Report Date</code>. Its year is compared against the main dashboard's own <code>entry</code> year mode (derived from each record's entry/submission date), not its default "year built" mode, since the two are the closer match.</li>
@@ -197,8 +197,8 @@
     { key: 'nla', label: 'Avg. NLA', unit: 'NLA', fmt: fmt2 },
     { key: 'nlr', label: 'Avg. NLR', unit: 'NLR', fmt: fmt2 },
     { key: 'floor_area', label: 'Avg. floor area', unit: 'm²', fmt: fmt0 },
-    { key: 'ghg', label: 'Avg. GHGs', unit: 'kg CO2e/yr', fmt: fmt0 },
-    { key: 'ghg_intensity', label: 'Avg. GHG intensity', unit: 'kg CO2e/m²/yr', fmt: fmt1 },
+    { key: 'ghg', label: 'Avg. GHGs ⚠︎ low confidence', unit: 'kg CO2e/yr', fmt: fmt0 },
+    { key: 'ghg_intensity', label: 'Avg. GHG intensity ⚠︎ low confidence', unit: 'kg CO2e/m²/yr', fmt: fmt1 },
     { key: 'meui_imp', label: 'Avg. MEUI % improvement over reference', unit: '%', fmt: fmt1 },
     { key: 'tedi_imp', label: 'Avg. TEDI % improvement over reference', unit: '%', fmt: fmt1 }
   ];
