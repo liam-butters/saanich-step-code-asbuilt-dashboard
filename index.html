@@ -46,9 +46,8 @@
   .meta-note { color: var(--fg-muted); font-size: 0.78rem; margin: 0 0 20px 0; }
   .meta-note a { color: var(--accent); }
 
-  .filters { display: flex; flex-wrap: wrap; align-items: end; gap: 14px; padding: 14px; margin-bottom: 18px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); }
-  .filters > label { display: flex; flex-direction: column; gap: 4px; font-size: 0.78rem; color: var(--fg-muted); }
-  .filters select { min-width: 220px; font: inherit; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel); color: var(--fg); }
+  .coverage-note { font-size: 0.82rem; color: var(--fg-muted); background: var(--accent-soft); border-radius: 8px; padding: 10px 14px; margin-bottom: 18px; }
+  .coverage-note b { color: var(--fg); }
 
   table.compare { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); font-size: 0.86rem; }
   table.compare caption { text-align: left; padding: 10px 14px 0 14px; color: var(--fg-muted); font-size: 0.78rem; caption-side: top; }
@@ -85,8 +84,6 @@
   footer a { color: var(--accent); }
 
   @media (max-width: 460px) {
-    .filters { flex-direction: column; align-items: stretch; }
-    .filters select { min-width: 0; width: 100%; }
     table.compare { font-size: 0.78rem; }
     table.compare th, table.compare td { padding: 7px 8px; }
   }
@@ -100,14 +97,7 @@
     <p class="meta-note" id="metaNote"></p>
   </header>
 
-  <div class="filters">
-    <label>Municipality (this spreadsheet)
-      <select id="municipalityFilter">
-        <option value="saanich">Saanich only</option>
-        <option value="all">All rows in this file (incl. Victoria, Central Saanich)</option>
-      </select>
-    </label>
-  </div>
+  <p class="coverage-note" id="coverageNote"></p>
 
   <h2>This spreadsheet vs. the main dashboard, filtered to Saanich</h2>
   <table class="compare" id="compareTable">
@@ -132,7 +122,7 @@
   </div>
   <div class="chart-row">
     <div class="chart-card"><h3>Avg. airtightness (ACH50), by year</h3><div class="chart-box" id="chartAch"></div></div>
-    <div class="chart-card"><h3>Avg. GHG intensity, by year ⚠︎ low confidence</h3><div class="chart-box" id="chartGhgIntensity"></div><p class="chart-note">This workbook has no electricity/gas consumption data to calculate GHGs from directly (unlike the sibling Victoria dashboard); these values come from the Zero Carbon framework's own GHG result column, which is known to be unreliable for some report vintages. Treat with caution.</p></div>
+    <div class="chart-card"><h3>Avg. GHG intensity, by year</h3><div class="chart-box" id="chartGhgIntensity"></div></div>
   </div>
   <div class="chart-row">
     <div class="chart-card"><h3>Avg. MEUI % improvement over reference, by year</h3><div class="chart-box" id="chartMeuiImp"></div></div>
@@ -158,7 +148,7 @@
       <li><b>MEUI % improvement over reference</b> — this workbook's <code>% Lower Than Ref / % Improvement Proposed</code> column, compared against the main dashboard's <code>Calculated MEUI % Improvement</code> (both already stored as a percentage).</li>
       <li><b>TEDI % improvement over reference</b> — this workbook's <code>Envelope % Better / Heat Loss Reduction Proposed</code> column, compared against the main dashboard's <code>Calc'd TEDI % Imp</code> (stored there as a 0-1 fraction; scaled &times;100 here for comparison).</li>
       <li><b>Floor area</b> — this workbook's <code>Conditioned Floor Area (m2)</code>, compared against the main dashboard's <code>HEATEDFLOORAREA</code>. The two aren't guaranteed to be defined identically, though they're normally close.</li>
-      <li><b>GHGs / GHG intensity ⚠︎ low confidence</b> — this workbook has no raw "GHGs" column and, unlike the sibling Victoria workbook, no electricity/natural gas consumption columns either, so GHGs can't be recalculated from fuel use here. The values shown come from the Zero Carbon framework's <code>ZC Total GHG Result</code> (divided by floor area for intensity) instead. That column is known to be unreliable for reports pulled from the 2018-era compliance report format — in the Victoria workbook it produced values three orders of magnitude too high on some rows, which is why GHGs are calculated from fuel consumption there instead of trusted from that column. No equivalent fix is possible here, so these two rows/charts should be treated with caution rather than taken at face value.</li>
+      <li><b>GHGs / GHG intensity</b> — this workbook has no raw "GHGs" column and no electricity/natural gas consumption columns either, so GHGs can't be calculated from fuel use the way the sibling Victoria dashboard does. Instead, these values come directly from the Zero Carbon framework's <code>ZC Total GHG Result</code> column (divided by floor area for intensity). <b>Note:</b> this is trusted here because this workbook's compliance reports are all the modern format — unlike the <a href="https://liam-butters.github.io/victoria-step-code-asbuilt-dashboard/">Victoria dashboard</a>, where that same column was found unreliable specifically for older, 2018-format reports (producing values three orders of magnitude too high on some rows), which is why GHGs are recalculated from fuel consumption there instead. The two dashboards derive GHGs differently for this reason, and the two figures shouldn't be assumed directly comparable between spreadsheets.</li>
       <li><b>Overall step achieved</b> — this workbook's <code>Step Achieved</code>, compared against the main dashboard's <code>Step Achieved</code>.</li>
       <li><b>House vs. multi-unit building</b> — this workbook's granular <code>Building Type</code> values are grouped into "House" vs. "Multi-unit: whole building" (any type containing "MURB") to match the main dashboard's own two-bucket convention.</li>
       <li><b>Year</b> — this workbook has no "year built" column, only a <code>Report Date</code>. Its year is compared against the main dashboard's own <code>entry</code> year mode (derived from each record's entry/submission date), not its default "year built" mode, since the two are the closer match.</li>
@@ -172,7 +162,7 @@
     <ul>
       <li>Sample sizes are very different (roughly 110–165 homes here vs. ~176 in the main dashboard's Saanich slice) — this file's averages are more sensitive to any single project.</li>
       <li>Only rows with <code>Report Stage = As Built</code> are included (a handful of Pre-Construction rows, and a few corrupted/shifted rows, have no as-built data to compare).</li>
-      <li>This workbook mixes municipalities: alongside Saanich (including "District of Saanich" / "SAANICH", normalized together), it has 42 Victoria rows, 1 ambiguous "Victoria (Saanich)" row, and 1 Central Saanich row (a distinct municipality from Saanich) — all excluded by the "Saanich only" filter above (default).</li>
+      <li>This workbook mixes municipalities: alongside Saanich (including "District of Saanich" / "SAANICH", normalized together), it has 42 Victoria rows, 1 ambiguous "Victoria (Saanich)" row, and 1 Central Saanich row (a distinct municipality from Saanich). All rows are included in the totals below regardless — if they're in this workbook, they're treated as applicable to this area rather than excluded.</li>
       <li>The main dashboard's own Calc'd TEDI % Imp is only populated for a minority of its Saanich records (about a third), and includes negative values (homes with a worse envelope than the CSA F280 reference house) — this isn't a data error, just a real feature of that underlying dataset.</li>
     </ul>
   </div>
@@ -197,8 +187,8 @@
     { key: 'nla', label: 'Avg. NLA', unit: 'NLA', fmt: fmt2 },
     { key: 'nlr', label: 'Avg. NLR', unit: 'NLR', fmt: fmt2 },
     { key: 'floor_area', label: 'Avg. floor area', unit: 'm²', fmt: fmt0 },
-    { key: 'ghg', label: 'Avg. GHGs ⚠︎ low confidence', unit: 'kg CO2e/yr', fmt: fmt0 },
-    { key: 'ghg_intensity', label: 'Avg. GHG intensity ⚠︎ low confidence', unit: 'kg CO2e/m²/yr', fmt: fmt1 },
+    { key: 'ghg', label: 'Avg. GHGs', unit: 'kg CO2e/yr', fmt: fmt0 },
+    { key: 'ghg_intensity', label: 'Avg. GHG intensity', unit: 'kg CO2e/m²/yr', fmt: fmt1 },
     { key: 'meui_imp', label: 'Avg. MEUI % improvement over reference', unit: '%', fmt: fmt1 },
     { key: 'tedi_imp', label: 'Avg. TEDI % improvement over reference', unit: '%', fmt: fmt1 }
   ];
@@ -214,15 +204,10 @@
   function fmt2(n) { return fmtNum(2)(n); }
 
   var DATA = null, BASELINE = null;
-  var state = { municipality: 'saanich' };
 
   // ---- aggregation over this spreadsheet's (municipality, year) cells ----
-
-  function filteredCells() {
-    if (!DATA) return [];
-    if (state.municipality === 'saanich') return DATA.cells.filter(function (c) { return c.municipality === 'Saanich'; });
-    return DATA.cells;
-  }
+  // Every row in the file is included, regardless of its municipality value -
+  // if it's in this workbook, it's treated as applicable to this area.
 
   function aggregate(cells) {
     var count = 0;
@@ -466,10 +451,16 @@
   // ---- render ----
 
   function renderCompareTable() {
-    var cells = filteredCells();
-    var summary = aggregate(cells);
+    var summary = aggregate(DATA.cells);
     var caption = document.getElementById('compareCaption');
-    caption.textContent = 'This spreadsheet: ' + summary.count + ' homes' + (state.municipality === 'saanich' ? ' (Saanich only)' : ' (all municipalities in the file)') + '. NRCan dashboard: ' + BASELINE.count + ' homes in Saanich.';
+    caption.textContent = 'This spreadsheet: ' + summary.count + ' homes. NRCan dashboard: ' + BASELINE.count + ' homes in Saanich.';
+    var coverage = document.getElementById('coverageNote');
+    if (coverage) {
+      var pct = BASELINE.count ? (summary.count / BASELINE.count) * 100 : null;
+      coverage.innerHTML = pct != null
+        ? 'This spreadsheet\'s <b>' + summary.count + ' homes</b> are <b>' + pct.toFixed(1) + '%</b> of the size of the main NRCan-based dashboard\'s Saanich sample (<b>' + BASELINE.count + ' homes</b>).'
+        : '';
+    }
 
     var body = document.getElementById('compareBody');
     body.innerHTML = '';
@@ -487,9 +478,8 @@
   }
 
   function renderCharts() {
-    var cells = filteredCells();
-    var summary = aggregate(cells);
-    var trendA = yearTrend(cells);
+    var summary = aggregate(DATA.cells);
+    var trendA = yearTrend(DATA.cells);
     var trendB = BASELINE.years;
     var years = Array.from(new Set(trendA.map(function (d) { return d.year; }).concat(trendB.map(function (d) { return d.year; })))).sort(function (a, b) { return a - b; });
 
@@ -563,10 +553,6 @@
     renderCharts();
   }
 
-  document.getElementById('municipalityFilter').addEventListener('change', function () {
-    state.municipality = this.value;
-    renderAll();
-  });
   window.addEventListener('resize', renderAll);
 
   // ---- boot ----

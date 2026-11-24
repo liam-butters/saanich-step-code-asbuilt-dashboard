@@ -64,13 +64,14 @@ NUMERIC_FIELDS = {
     'Envelope % Better / Heat Loss Reduction Proposed': 'tedi_imp',
 }
 
-# GHGs are taken from ZC Total GHG Result even though that column is known
-# to be unreliable for reports pulled from the 2018-era compliance report
-# format (see the sibling Victoria dashboard, which hit values three orders
-# of magnitude too high on some rows). The fix there - recalculating GHGs
-# from as-built electricity/natural gas consumption - isn't possible here:
-# this workbook has no fuel-consumption columns at all. Kept anyway (flagged
-# in the UI as lower-confidence) since there's no better source available.
+# GHGs are taken directly from ZC Total GHG Result. Unlike the sibling
+# Victoria workbook - where this same column was unreliable because those
+# reports used the 2018-era compliance report format (some rows had values
+# three orders of magnitude too high, fixed there by recalculating GHGs from
+# as-built electricity/natural gas consumption instead) - this workbook's
+# compliance reports are all the modern format, so this column is trusted
+# as-is. This workbook also has no fuel-consumption columns to recalculate
+# from even if it were needed.
 GHG_FIELD = 'ZC Total GHG Result'
 GHG_PLAUSIBILITY_CEILING = 100000
 
