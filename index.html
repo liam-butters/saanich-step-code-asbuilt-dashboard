@@ -183,7 +183,7 @@
     </ul>
     <h3>Other caveats</h3>
     <ul>
-      <li>Sample sizes are very different (roughly 137 homes here, the same count for every metric including NLR, vs. ~370 in the main dashboard's Saanich slice) — this file's averages are more sensitive to any single project.</li>
+      <li>Sample sizes are very different (roughly <span id="caveatHomeCount">—</span> homes here, the same count for every metric including NLR, vs. ~370 in the main dashboard's Saanich slice) — this file's averages are more sensitive to any single project.</li>
       <li>Only rows with <code>Report Stage = As Built</code> are included (a handful of Pre-Construction rows, and a few corrupted/shifted rows, have no as-built data to compare), rows with more than 2 Dwelling Units are excluded, and rows missing any metric other than NLR are excluded (see Column mapping and Row completeness above).</li>
       <li>This workbook mixes municipalities: alongside Saanich (including "District of Saanich" / "SAANICH", normalized together), it has 18 Victoria rows and 1 Central Saanich row (a distinct municipality from Saanich) that pass the filters above. The one ambiguous "Victoria (Saanich)" row seen before the row-completeness filter above was added didn't survive it - it was missing one of the now-required metrics. Every row that passes those filters is included in the totals below regardless of municipality — if it's in this workbook, it's treated as applicable to this area rather than excluded.</li>
     </ul>
@@ -727,6 +727,7 @@
     var baseDate = BASELINE.generated_at ? BASELINE.generated_at.slice(0, 10) : 'unknown date';
     document.getElementById('subtitle').textContent =
       fmt0(aggregate(DATA.cells).count) + ' as-built homes from "' + DATA.source_file + '" compared against the main NRCan-based dashboard\'s Saanich homes, matched to the same years.';
+    document.getElementById('caveatHomeCount').textContent = fmt0(aggregate(DATA.cells).count);
     document.getElementById('metaNote').textContent =
       'This spreadsheet extracted ' + genDate + '. Main dashboard data (' + (BASELINE.source_file || 'NRCan workbook') + ') baseline computed ' + baseDate + '.';
     document.getElementById('footerSource').textContent = DATA.source_file;
