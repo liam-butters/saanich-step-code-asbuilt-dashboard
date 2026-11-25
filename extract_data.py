@@ -170,6 +170,12 @@ REQUIRED_METRICS = ['meui', 'tedi', 'ach', 'nla', 'floor_area', 'ghg', 'ghg_inte
 # as-is. This workbook also has no fuel-consumption columns to recalculate
 # from even if it were needed.
 GHG_FIELD = 'ZC Total GHG Result'
+# Whenever one of GHG_FIELD/GHGI_FIELD is blank (or zero - the Zero Carbon
+# framework appears to use 0 as a "not computed" sentinel on some rows, same
+# as several other columns in this workbook) but the other is a usable
+# number, the missing one is derived from it via Conditioned Floor Area
+# instead of the row losing both values - see the GHG/GHGI derivation below.
+GHGI_FIELD = 'ZC GHG per m2 Result'
 GHG_PLAUSIBILITY_CEILING = 100000
 
 MIN_PLAUSIBLE_YEAR = 1990
@@ -262,7 +268,7 @@ def main():
     col = {name: i for i, name in enumerate(header) if name}
 
     missing = [n for n in [REPORT_STAGE_FIELD, MUNICIPALITY_FIELD, REPORT_DATE_FIELD, BUILDING_TYPE_FIELD,
-                            STEP_ACHIEVED_FIELD, GHG_FIELD, DWELLING_UNITS_FIELD]
+                            STEP_ACHIEVED_FIELD, GHG_FIELD, GHGI_FIELD, DWELLING_UNITS_FIELD]
                + list(NUMERIC_FIELDS) if n not in col]
     if missing:
         raise SystemExit(f'Columns not found in header: {missing}')
@@ -320,11 +326,20 @@ def main():
 
         floor_area = num.get('floor_area')
         ghg = to_float(get(GHG_FIELD))
-        if ghg is not None and ghg > GHG_PLAUSIBILITY_CEILING:
+        if ghg is not None and (ghg == 0 or ghg > GHG_PLAUSIBILITY_CEILING):
             ghg = None
-        if ghg and floor_area:
+        ghg_intensity = to_float(get(GHGI_FIELD))
+        if ghg_intensity == 0:
+            ghg_intensity = None
+        if floor_area:
+            if ghg is None and ghg_intensity is not None:
+                ghg = ghg_intensity * floor_area
+            elif ghg_intensity is None and ghg is not None:
+                ghg_intensity = ghg / floor_area
+        if ghg is not None:
             num['ghg'] = ghg
-            num['ghg_intensity'] = ghg / floor_area
+        if ghg_intensity is not None:
+            num['ghg_intensity'] = ghg_intensity
 
         if any(key not in num for key in REQUIRED_METRICS):
             skipped_incomplete += 1
