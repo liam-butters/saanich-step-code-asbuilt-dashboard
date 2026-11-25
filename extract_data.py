@@ -148,6 +148,19 @@ ZERO_AS_MISSING = {'meui', 'tedi', 'ach', 'nla', 'nlr', 'floor_area'}
 # cover the same building-size range - see method.html.
 MAX_DWELLING_UNITS = 2
 
+# NLR is a much less consistently reported airtightness metric than the
+# others - requiring it alongside everything else would throw out otherwise-
+# complete rows just because of one rarely-filled field. Treated as an edge
+# case: a row missing NLR alone still counts for every other metric (it just
+# doesn't contribute to the NLR average itself, same as before). But a row
+# missing any OTHER metric actually shown on this dashboard is dropped
+# entirely, from every metric, not just the one it lacks - so every metric
+# here (other than NLR) is computed from the exact same set of rows, rather
+# than each silently drawing from a different subset. meui_imp/tedi_imp are
+# extracted but never shown on this dashboard (see method.html), so they're
+# deliberately left out of this requirement too.
+REQUIRED_METRICS = ['meui', 'tedi', 'ach', 'nla', 'floor_area', 'ghg', 'ghg_intensity']
+
 # GHGs are taken directly from ZC Total GHG Result. Unlike the sibling
 # Victoria workbook - where this same column was unreliable because those
 # reports used the 2018-era compliance report format (some rows had values
@@ -261,6 +274,7 @@ def main():
     total_kept = 0
     skipped_not_as_built = 0
     skipped_large_murb = 0
+    skipped_incomplete = 0
     muni_counts = {}
     fit_acc = new_fit_accumulator()
 
@@ -298,9 +312,6 @@ def main():
             skipped_large_murb += 1
             continue
 
-        muni_counts[municipality] = muni_counts.get(municipality, 0) + units
-        total_kept += 1
-
         num = {}
         for field, key in NUMERIC_FIELDS.items():
             fv = to_float(get(field))
@@ -314,6 +325,13 @@ def main():
         if ghg and floor_area:
             num['ghg'] = ghg
             num['ghg_intensity'] = ghg / floor_area
+
+        if any(key not in num for key in REQUIRED_METRICS):
+            skipped_incomplete += 1
+            continue
+
+        muni_counts[municipality] = muni_counts.get(municipality, 0) + units
+        total_kept += 1
 
         accumulate_fit(fit_acc, num, floor_area, units)
 
@@ -347,7 +365,8 @@ def main():
             hist[value] = hist.get(value, 0) + units
 
     print(f'{total_in_sheet} data rows in sheet, {skipped_not_as_built} skipped (not "{WANTED_REPORT_STAGE}" report stage), '
-          f'{skipped_large_murb} skipped (> {MAX_DWELLING_UNITS} Dwelling Units), {total_kept} kept')
+          f'{skipped_large_murb} skipped (> {MAX_DWELLING_UNITS} Dwelling Units), '
+          f'{skipped_incomplete} skipped (missing a metric other than NLR), {total_kept} kept')
     print('Municipalities:', dict(sorted(muni_counts.items(), key=lambda kv: -kv[1])))
 
     size_fit = solve_fit(fit_acc)
