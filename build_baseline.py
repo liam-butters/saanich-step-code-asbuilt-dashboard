@@ -15,7 +15,8 @@ this spreadsheet's own data actually covers, rather than comparing against
 every year NRCan has. Also carries each year's raw per-home values (from the
 main dashboard's own 'median_export', scoped to just Victoria/Saanich - see
 its extract_data.py) so a median can be computed client-side alongside the
-mean.
+mean, plus each home's metrics kept together ('linked_home_export', Saanich
+only) so the dashboard can drop its highest-GHG homes from every metric.
 
 Usage:
     python build_baseline.py ["path to main dashboard's data.json"]
@@ -75,6 +76,7 @@ def build_mode(data, mode):
     overall_n = {k: sums[k][1] for k in NUMERIC_KEYS}
 
     median_raw = data.get('median_export', {}).get(mode, {})
+    homes_raw = data.get('linked_home_export', {}).get(mode, {})
     years_out = []
     for year in sorted(by_year):
         acc = by_year[year]
@@ -90,6 +92,16 @@ def build_mode(data, mode):
             }
             if median:
                 row['median'] = median
+        # Each home's metrics kept together (not just per metric, like
+        # median above), so the dashboard can find its highest-GHG homes and
+        # drop those same homes from every metric, not just GHG - see
+        # LINKED_HOME_EXPORT_CITIES in the main dashboard's extract_data.py.
+        homes_src = homes_raw.get(f'{CITY}|{year}')
+        if homes_src:
+            row['homes'] = [
+                {k: scale(k, v) for k, v in home.items() if k in NUMERIC_KEYS}
+                for home in homes_src
+            ]
         years_out.append(row)
 
     return {

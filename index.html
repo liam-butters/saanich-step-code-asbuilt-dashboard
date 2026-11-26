@@ -194,7 +194,7 @@
       <li>The main NRCan dashboard can assign each home's year two different ways — <b>year built</b> or <b>entry date</b> (when the evaluation was logged) — and the two give meaningfully different year coverage. The <b>"NRCan year basis"</b> dropdown above switches which one the comparison tables, trend charts and category-mix charts all use; it does not change anything about this spreadsheet's own data (which has no "year built" column and is always compared by report date).</li>
       <li>The comparison table restricts the NRCan baseline to only the years this spreadsheet itself has data for (shown in the note above the comparison table), so the "NRCan dashboard" column is a genuine apples-to-apples time comparison rather than an average across every year NRCan has — which, for a dataset of homes that generally get more efficient over time, would otherwise skew the baseline toward NRCan's earlier, less-efficient years. The year-by-year trend charts below only plot years where <i>both</i> this spreadsheet and the NRCan baseline have data - a year with data on only one side is left out rather than shown with a line that drops to nothing. The category-mix charts (Step Code achieved, house type) still use the whole NRCan dataset, not just matched years, since those are breakdowns of composition rather than of a metric average.</li>
       <li>The <b>"Statistic"</b> dropdown switches every average above between the <b>mean</b> and the <b>median</b> of the underlying per-home values, for both this spreadsheet and the NRCan baseline.</li>
-      <li><b>NRCan Median GHGs</b> — the NRCan baseline's per-home GHG values are bimodal: a cluster of all-electric homes well under 200 kg CO2e/yr, then a near-total gap, then a much larger cluster of gas/mixed-fuel homes from roughly 550 kg CO2e/yr up into the thousands. With a gap like that, the median rank can land on either side of it depending on exactly which homes are in the year-matched sample, so adding or removing just a handful of homes can swing the NRCan median GHGs by hundreds of kg CO2e/yr. To keep it from riding on that knife-edge (and on the small number of extreme high-GHG homes above it), the <b>25 highest</b> GHG values in the NRCan baseline are dropped before computing the median shown here - this only affects the NRCan median GHGs figure (not its mean, not this spreadsheet's own GHGs, and not any other metric).</li>
+      <li><b>NRCan GHG outlier homes</b> — the NRCan baseline's per-home GHG values are bimodal: a cluster of all-electric homes well under 200 kg CO2e/yr, then a near-total gap, then a much larger cluster of gas/mixed-fuel homes from roughly 550 kg CO2e/yr up into the thousands. With a gap like that, a mean or median rank can land on either side of it depending on exactly which homes are in the year-matched sample, so adding or removing just a handful of homes can swing the NRCan GHG figures by hundreds of kg CO2e/yr. To keep them from riding on that knife-edge, the <b>25 homes with the highest GHGs</b> in the NRCan year-matched sample are dropped entirely before computing every NRCan figure in the comparison table above (mean and median alike, every metric, not just GHGs) - this only affects that summary comparison; the by-year trend charts below, and this spreadsheet's own figures, are unaffected.</li>
     </ul>
   </div>
 
@@ -343,14 +343,17 @@
 
   // The NRCan GHG totals are bimodal (a cluster of all-electric homes well
   // under 200 kg CO2e/yr, then a near-total gap, then a much larger cluster
-  // of gas/mixed-fuel homes from ~550 up into the thousands), so the median
-  // rank can land right on either side of that gap depending on exactly
-  // which homes are in the year-matched sample - a few homes added or
-  // removed can swing it by hundreds of kg CO2e/yr. Dropping the highest
-  // GHG_MEDIAN_TRIM_TOP values before taking the median pulls the sample
-  // away from that unstable edge and the long tail of extreme outliers
-  // above it, at the cost of excluding those homes from the GHG median.
-  var GHG_MEDIAN_TRIM_TOP = 25;
+  // of gas/mixed-fuel homes from ~550 up into the thousands), so a GHG
+  // median or mean taken over the year-matched sample can swing by hundreds
+  // of kg CO2e/yr depending on exactly which homes land on which side of
+  // that gap. Dropping the GHG_OUTLIER_HOMES_TO_DROP homes with the highest
+  // GHGs - not just their GHG values, but every metric for those same homes
+  // - pulls every figure below away from that unstable edge and the long
+  // tail of extreme outliers above it, at the cost of excluding those homes
+  // entirely from this comparison. Only affects this summary comparison
+  // (mean and median alike); the by-year trend charts below use the full,
+  // untrimmed sample for every year.
+  var GHG_OUTLIER_HOMES_TO_DROP = 25;
 
   // Aggregates the NRCan baseline for one year mode, optionally restricted
   // to a set of years (for the year-matched comparison), as mean or median.
@@ -359,29 +362,26 @@
       return !matchYears || matchYears.indexOf(y.year) !== -1;
     });
     var count = 0;
-    var sums = {}, medianArrs = {};
-    METRICS.forEach(function (m) { sums[m.key] = [0, 0]; medianArrs[m.key] = []; });
+    var homes = [];
     years.forEach(function (y) {
       count += y.count;
-      METRICS.forEach(function (m) {
-        var v = y.num && y.num[m.key];
-        if (v) { sums[m.key][0] += v[0]; sums[m.key][1] += v[1]; }
-        var med = y.median && y.median[m.key];
-        if (med) medianArrs[m.key] = medianArrs[m.key].concat(med);
-      });
+      if (y.homes) homes = homes.concat(y.homes);
     });
+    var byGhgDesc = homes.filter(function (h) { return h.ghg != null; })
+      .sort(function (a, b) { return b.ghg - a.ghg; });
+    var dropped = new Set(byGhgDesc.slice(0, GHG_OUTLIER_HOMES_TO_DROP));
+    var kept = homes.filter(function (h) { return !dropped.has(h); });
+
     var avg = {}, n = {};
     METRICS.forEach(function (m) {
+      var vals = kept.map(function (h) { return h[m.key]; }).filter(function (v) { return v != null; });
       if (stat === 'median') {
-        var arr = medianArrs[m.key].slice().sort(function (a, b) { return a - b; });
-        if (m.key === 'ghg' && arr.length > GHG_MEDIAN_TRIM_TOP) {
-          arr = arr.slice(0, arr.length - GHG_MEDIAN_TRIM_TOP);
-        }
-        n[m.key] = arr.length;
-        avg[m.key] = arr.length ? medianOf(arr) : null;
+        vals = vals.slice().sort(function (a, b) { return a - b; });
+        n[m.key] = vals.length;
+        avg[m.key] = vals.length ? medianOf(vals) : null;
       } else {
-        avg[m.key] = sums[m.key][1] ? sums[m.key][0] / sums[m.key][1] : null;
-        n[m.key] = sums[m.key][1];
+        n[m.key] = vals.length;
+        avg[m.key] = vals.length ? vals.reduce(function (s, v) { return s + v; }, 0) / vals.length : null;
       }
     });
     return { count: count, avg: avg, n: n, years: years.map(function (y) { return y.year; }) };
