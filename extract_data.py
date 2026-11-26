@@ -14,9 +14,12 @@ has no dedicated "As-Built" columns - only "Required" and "Proposed". For a
 row whose Report Stage is "As Built", the "Proposed" column holds the as-built
 measured value, so that's what's used here.
 
-Output is aggregated into (municipality, year) cells - counts, sums, and
-category histograms only, no per-home records - matching the main
-dashboard's own privacy approach.
+Output is aggregated into per-year cells - counts, sums, and category
+histograms only, no per-home records - matching the main dashboard's own
+privacy approach. Every kept row is counted as Saanich: this workbook is
+Saanich's own step code submission log, so a row's Municipality/District
+or postal code is ignored for this purpose (e.g. a Victoria postal code
+on a project the district itself submitted still counts as Saanich).
 
 Usage:
     python extract_data.py ["path to Saanich Data from Digital Versions - Extracted.xlsx"]
@@ -41,7 +44,6 @@ OUT_PATH = Path(__file__).parent / 'data.json'
 REPORT_STAGE_FIELD = 'Report Stage'
 WANTED_REPORT_STAGE = 'As Built'
 
-MUNICIPALITY_FIELD = 'Municipality / District'
 REPORT_DATE_FIELD = 'Report Date'
 BUILDING_TYPE_FIELD = 'Building Type'
 # Low-Rise MURB/(MURB) rows and rows with no usable building type at all
@@ -129,14 +131,6 @@ MIN_PLAUSIBLE_YEAR = 1990
 MAX_PLAUSIBLE_YEAR = datetime.date.today().year + 1
 YEAR_RE = re.compile(r'(19|20)\d{2}')
 
-MUNICIPALITY_FIXES = {
-    'saanich': 'Saanich',
-    'district of saanich': 'Saanich',
-    'victoria': 'Victoria',
-    'victoria (saanich)': 'Victoria (Saanich)',
-    'district of central saanich': 'Central Saanich',
-}
-
 BUILDING_TYPE_FIXES = {
     'row house': 'Row House (non-MURB)',
     'laneway house': 'Laneway House',
@@ -153,15 +147,6 @@ def to_float(raw):
         return float(raw)
     except (TypeError, ValueError):
         return None
-
-
-def normalize_municipality(raw):
-    if not raw:
-        return 'Unknown'
-    name = ' '.join(str(raw).strip().split())
-    if not name:
-        return 'Unknown'
-    return MUNICIPALITY_FIXES.get(name.lower(), name)
 
 
 def normalize_building_type(raw):
@@ -214,21 +199,25 @@ def main():
     header = next(rows)
     col = {name: i for i, name in enumerate(header) if name}
 
-    missing = [n for n in [REPORT_STAGE_FIELD, MUNICIPALITY_FIELD, REPORT_DATE_FIELD, BUILDING_TYPE_FIELD,
+    missing = [n for n in [REPORT_STAGE_FIELD, REPORT_DATE_FIELD, BUILDING_TYPE_FIELD,
                             STEP_ACHIEVED_FIELD, GHG_FIELD, GHGI_FIELD, DWELLING_UNITS_FIELD]
                + list(NUMERIC_FIELDS) if n not in col]
     if missing:
         raise SystemExit(f'Columns not found in header: {missing}')
 
     # Aggregated into (municipality, year) cells - counts/sums/category
-    # histograms only, no per-home records.
+    # histograms only, no per-home records. There's only one municipality:
+    # this whole workbook is Saanich's own step code submissions, regardless
+    # of what a row's own Municipality/District or postal code happens to
+    # say (e.g. a Victoria postal code on a Saanich-submitted permit) - see
+    # README.
+    MUNICIPALITY = 'Saanich'
     cells = {}
     total_in_sheet = 0
     total_kept = 0
     skipped_not_as_built = 0
     skipped_excluded_building_type = 0
     skipped_incomplete = 0
-    muni_counts = {}
 
     for r in rows:
         if r is None or all(v is None for v in r):
@@ -244,7 +233,6 @@ def main():
             skipped_not_as_built += 1
             continue
 
-        municipality = normalize_municipality(get(MUNICIPALITY_FIELD))
         year = normalize_year_from_report_date(get(REPORT_DATE_FIELD))
         year_key = year if year is not None else 'Unknown'
         building_type = normalize_building_type(get(BUILDING_TYPE_FIELD))
@@ -292,11 +280,10 @@ def main():
             skipped_incomplete += 1
             continue
 
-        muni_counts[municipality] = muni_counts.get(municipality, 0) + units
         total_kept += 1
 
-        cell = cells.setdefault((municipality, year_key), {
-            'municipality': municipality,
+        cell = cells.setdefault(year_key, {
+            'municipality': MUNICIPALITY,
             'year': year_key,
             'count': 0,
             'num': {},
@@ -327,7 +314,6 @@ def main():
     print(f'{total_in_sheet} data rows in sheet, {skipped_not_as_built} skipped (not "{WANTED_REPORT_STAGE}" report stage), '
           f'{skipped_excluded_building_type} skipped (excluded building type), '
           f'{skipped_incomplete} skipped (missing a metric other than NLR), {total_kept} kept')
-    print('Municipalities:', dict(sorted(muni_counts.items(), key=lambda kv: -kv[1])))
 
     for cell in cells.values():
         for key in cell['median']:
